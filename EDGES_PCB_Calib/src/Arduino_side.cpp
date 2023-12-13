@@ -9,7 +9,7 @@ void setup() {
   // Start serial communication
   Serial.begin(9600);
 
-  
+
 
   // Initialize LED pin as an output
   pinMode(ledPin, OUTPUT);
@@ -34,7 +34,8 @@ void loop() {
   if (Serial.available() > 0) {
     // Read the incoming command
     String command = Serial.readStringUntil('\n');
-
+    x = command.split("x")
+    serial.println(x[1]);
     // Process the command
     if (command == "ON") {
       digitalWrite(ledPin, HIGH);  // Turn the LED on

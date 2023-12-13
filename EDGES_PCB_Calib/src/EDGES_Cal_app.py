@@ -1,73 +1,118 @@
 from kivy.app import App
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
-from kivy.uix.label import Label
 from kivy.uix.textinput import TextInput
-from kivy.clock import Clock
+from kivy.uix.label import Label
+from kivy.uix.button import Button
+from kivy.graphics import Color, RoundedRectangle
 import serial
 
-class SerialMonitorApp(App):
-    def build(self):
-        self.serial_port = None
+class RoundedButton(Button):
+    def __init__(self, **kwargs):
+        super(RoundedButton, self).__init__(**kwargs)
 
-        # UI layout
+    def on_size(self, instance, value):
+        self.canvas.before.clear()
+        with self.canvas.before:
+            Color(0.2, 0.6, 1, 1)  # Adjust color as needed
+            RoundedRectangle(pos=self.pos, size=self.size, radius=[20])
+
+class SerialPortApp(App):
+    def build(self):
+        # Create a BoxLayout as the root widget
         layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
 
-        # Serial port selection
-        self.serial_label = Label(text='Serial Port:')
-        layout.add_widget(self.serial_label)
+        # Create a TextInput for entering the serial port number
+        self.port_input = TextInput(
+            multiline=False,
+            font_size=20,
+            halign='center',
+            hint_text='Enter port number (e.g., COM1 or /dev/ttyUSB0)'
+        )
 
-        self.serial_input = TextInput(multiline=False, input_type='text')
-        layout.add_widget(self.serial_input)
+        # Create a TextInput for entering a message to send
+        self.message_input = TextInput(
+            multiline=False,
+            font_size=20,
+            halign='center',
+            hint_text='Enter message to send'
+        )
 
-        # Connect and Disconnect buttons
-        connect_button = Button(text='Connect', on_press=self.connect_serial)
-        disconnect_button = Button(text='Disconnect', on_press=self.disconnect_serial)
+        # Create a Label for displaying the output
+        self.output_label = Label(text='Port message will appear here', font_size=20, halign='center')
+
+        # Create round buttons
+        connect_button = RoundedButton(text='Connect', on_press=self.connect_to_serial, size_hint=(None, None))
+        disconnect_button = RoundedButton(text='Disconnect', on_press=self.disconnect_serial, size_hint=(None, None))
+        send_button = RoundedButton(text='Send Message', on_press=self.send_message, size_hint=(None, None))
+        
+        # Create a Button to read messages from the serial port
+        read_button = RoundedButton(text='Read Message', on_press=self.read_message, size_hint=(None, None))
+
+        # Add widgets to the layout
+        layout.add_widget(self.port_input)
         layout.add_widget(connect_button)
         layout.add_widget(disconnect_button)
-
-        # Data input and output
-        self.data_input = TextInput(multiline=False, input_type='text', readonly=True)
-        layout.add_widget(self.data_input)
-
-        self.send_button = Button(text='Send', on_press=self.send_data)
-        layout.add_widget(self.send_button)
-
-        # Clock schedule for periodic updates
-        Clock.schedule_interval(self.update, 1.0 / 10)  # Update every 0.1 seconds
+        layout.add_widget(self.message_input)
+        layout.add_widget(send_button)
+        layout.add_widget(read_button)
+        layout.add_widget(self.output_label)
 
         return layout
 
-    def connect_serial(self, instance):
-        # Get the selected serial port from the input field
-        port_name = self.serial_input.text.strip()
+    def connect_to_serial(self, instance):
+        # Get the serial port number from the TextInput
+        port_number = self.port_input.text
 
         try:
             # Open the serial port
-            self.serial_port = serial.Serial(port_name, 9600, timeout=0.1)
-            self.serial_label.text = f'Serial Port: {port_name} (Connected)'
+            self.ser = serial.Serial(port=port_number, baudrate=9600, timeout=1)
+
+            # Read a message from the serial port
+            message = self.ser.readline().decode('utf-8')
+
+            # Display the message in the output label
+            self.output_label.text = f'Received message: {message}'
         except Exception as e:
-            self.data_input.text += f'Error connecting to {port_name}: {e}\n'
+            # Display an error message if there is an issue with the serial port
+            self.output_label.text = f'Error: {str(e)}'
 
     def disconnect_serial(self, instance):
-        # Close the serial port
-        if self.serial_port and self.serial_port.is_open:
-            self.serial_port.close()
-            self.serial_label.text = 'Serial Port: (Disconnected)'
+        # Check if the serial port is open before attempting to close it
+        if hasattr(self, 'ser') and self.ser.is_open:
+            # Close the serial port
+            self.ser.close()
+            self.output_label.text = 'Serial port disconnected'
+        else:
+            self.output_label.text = 'No active serial connection'
 
-    def send_data(self, instance):
-        # Get the data from the input field and send it to the serial port
-        if self.serial_port and self.serial_port.is_open:
-            data = self.data_input.text
-            self.serial_port.write(data.encode())
-            self.data_input.text = ''
+    def send_message(self, instance):
+        # Check if the serial port is open before attempting to send a message
+        if hasattr(self, 'ser') and self.ser.is_open:
+            # Get the message from the TextInput
+            message_to_send = self.message_input.text
 
-    def update(self, dt):
-        # Check for incoming data from the serial port
-        if self.serial_port and self.serial_port.is_open and self.serial_port.in_waiting > 0:
-            received_data = self.serial_port.readline().decode().strip()
-            self.data_input.text += f'Received: {received_data}\n'
+            # Send the message to the serial port
+            self.ser.write(message_to_send.encode('utf-8'))
+
+            # Read the response from the serial port
+            response = self.ser.readline().decode('utf-8')
+
+            # Display the received message in the output label
+            self.output_label.text = f'Received message: {response}'
+        else:
+            self.output_label.text = 'No active serial connection'
+
+    def read_message(self, instance):
+        # Check if the serial port is open before attempting to read a message
+        if hasattr(self, 'ser') and self.ser.is_open:
+            # Read a message from the serial port
+            message = self.ser.readline().decode('utf-8')
+
+            # Display the received message in the output label
+            self.output_label.text = f'Received message: {message}'
+        else:
+            self.output_label.text = 'No active serial connection'
+
 
 if __name__ == '__main__':
-    SerialMonitorApp().run()
-
+    SerialPortApp().run()
