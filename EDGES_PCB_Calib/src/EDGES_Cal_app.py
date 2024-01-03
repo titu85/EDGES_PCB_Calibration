@@ -19,7 +19,7 @@ class RoundedButton(Button):
 class SerialPortApp(App):
     def build(self):
         # Create a BoxLayout as the root widget
-        layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
+        #layout = BoxLayout(orientation='vertical', spacing=10, padding=10)
 
         # Create a TextInput for entering the serial port number
         self.port_input = TextInput(
@@ -41,9 +41,9 @@ class SerialPortApp(App):
         self.output_label = Label(text='Port message will appear here', font_size=20, halign='center')
 
         # Create round buttons
-        connect_button = RoundedButton(text='Connect', on_press=self.connect_to_serial, size_hint=(None, None))
-        disconnect_button = RoundedButton(text='Disconnect', on_press=self.disconnect_serial, size_hint=(None, None))
-        send_button = RoundedButton(text='Send Message', on_press=self.send_message, size_hint=(None, None))
+        connect_button = Button(text='Connect', on_press=self.connect_to_serial,pos=(800,500),size=(50,50), size_hint=(None, None))
+        disconnect_button = Button(text='Disconnect', on_press=self.disconnect_serial, size_hint=(None, None))
+        send_button = Button(text='Send Message', on_press=self.send_message, size_hint=(None, None))
         
         # Create a Button to read messages from the serial port
         read_button = RoundedButton(text='Read Message', on_press=self.read_message, size_hint=(None, None))
